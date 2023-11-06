@@ -1,30 +1,50 @@
 function findDuplicateTransactions(transactions) {
-    const duplicateGroups = new Map();
-  
-    transactions.forEach((transact1, i) => {
-        transactions.slice(i + 1).forEach((transact2) => {
-            if (
-                transact1.sourceAccount === transact2.sourceAccount &&
-                transact1.targetAccount === transact2.targetAccount &&
-                transact1.amount === transact2.amount &&
-                transact1.category === transact2.category &&
-                Math.abs(new Date(transact1.time) - new Date(transact2.time)) <= 60000
-            ) {
-                const groupKey = `${transact1.sourceAccount}-${transact1.targetAccount}-${transact1.amount}-${transact1.category}`;
-                if (!duplicateGroups.has(groupKey)) {
-                    duplicateGroups.set(groupKey, [transact1]);
-                }
-                duplicateGroups.get(groupKey).push(transact2);
-            }
-        });
-    });
-  
-    // Convert Map values (groups) to an array, sort, and return
-    const sortedDuplicateGroups = Array.from(duplicateGroups.values()).sort(
-        (group1, group2) => new Date(group1[0].time) - new Date(group2[0].time)
-    );
-  
-    return sortedDuplicateGroups;
-  }
+    const groupedTransactions = {};
 
-  export default findDuplicateTransactions;
+    // Create a unique key for each transaction based on sourceAccount, targetAccount, category, and amount
+    transactions.forEach((transaction) => {
+        const key = `${transaction.sourceAccount}-${transaction.targetAccount}-${transaction.category}-${transaction.amount}`;
+        if (!groupedTransactions[key]) {
+            groupedTransactions[key] = [transaction];
+        } else {
+            groupedTransactions[key].push(transaction);
+        }
+    });
+
+    // Find and collect groups of transactions with time difference less than 1 minute
+    const duplicateGroups = [];
+
+    for (const key in groupedTransactions) {
+        const group = groupedTransactions[key];
+        if (group.length > 1) {
+            group.sort((a, b) => new Date(a.time) - new Date(b.time));
+            const timeThreshold = 60000; // 1 minute in milliseconds
+            let currentGroup = [group[0]];
+
+            for (let i = 1; i < group.length; i++) {
+                const prevTime = new Date(currentGroup[currentGroup.length - 1].time);
+                const currentTime = new Date(group[i].time);
+                const timeDifference = Math.abs(currentTime - prevTime);
+
+                if (timeDifference <= timeThreshold) {
+                    currentGroup.push(group[i]);
+                } else {
+                    if (currentGroup.length > 1) {
+                        duplicateGroups.push(currentGroup);
+                    }
+                    currentGroup = [group[i]];
+                }
+            }
+
+            if (currentGroup.length > 1) {
+                duplicateGroups.push(currentGroup);
+            }
+        }
+    }
+
+    // Sort groups by the time of the first transaction in each group
+    duplicateGroups.sort((a, b) => new Date(a[0].time) - new Date(b[0].time));
+
+    return duplicateGroups;
+}
+export default findDuplicateTransactions;
